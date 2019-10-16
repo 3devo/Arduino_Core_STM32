@@ -12,6 +12,12 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/* Request to jump to system memory boot */
+void jumpToBootloaderRequested(void);
+
+/* Jump to system memory boot from user application */
+void jumpToBootloader(void);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
