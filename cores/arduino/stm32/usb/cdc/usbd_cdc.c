@@ -173,11 +173,23 @@ __ALIGN_BEGIN uint8_t USBD_CDC_CfgHSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN_END = 
   USB_DESC_TYPE_CONFIGURATION,      /* bDescriptorType: Configuration */
   USB_CDC_CONFIG_DESC_SIZ,                /* wTotalLength:no of returned bytes */
   0x00,
-  0x02,   /* bNumInterfaces: 2 interface */
+  0x03,   /* bNumInterfaces: 3 interface */
   0x01,   /* bConfigurationValue: Configuration value */
   0x00,   /* iConfiguration: Index of string descriptor describing the configuration */
   0xC0,   /* bmAttributes: self powered */
   0x32,   /* MaxPower 0 mA */
+
+  /*Interface Association Descriptor*/
+  0x08,                               // bLength: Descriptor length
+  0x0B,                               // bDescriptorType: IAD
+  0x00,                               // bFirstInterface
+  0x02,                               // bInterfaceCount
+  0x02,                               // bFunctionClass (class of subdevice, should match first interface)
+  0x02,                               // bFunctionSubclass (subclass of subdevice, should match first interface)
+  0x00,                               // bFunctionProtocol (protocol of subdevice, should match first interface)
+  /* TODO: Put a meaningful string here, which shows up in the Windows * */
+  /* device manager when no driver is installed yet. */
+  0x00,                               // iFunction
 
   /*---------------------------------------------------------------------------*/
 
@@ -257,7 +269,9 @@ __ALIGN_BEGIN uint8_t USBD_CDC_CfgHSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN_END = 
   0x02,                              /* bmAttributes: Bulk */
   LOBYTE(CDC_DATA_HS_MAX_PACKET_SIZE),  /* wMaxPacketSize: */
   HIBYTE(CDC_DATA_HS_MAX_PACKET_SIZE),
-  0x00                               /* bInterval: ignore for Bulk transfer */
+  0x00,                              /* bInterval: ignore for Bulk transfer */
+
+  DFU_RT_IFACE_DESC
 } ;
 
 
@@ -268,13 +282,25 @@ __ALIGN_BEGIN uint8_t USBD_CDC_CfgFSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN_END = 
   USB_DESC_TYPE_CONFIGURATION,      /* bDescriptorType: Configuration */
   USB_CDC_CONFIG_DESC_SIZ,                /* wTotalLength:no of returned bytes */
   0x00,
-  0x02,   /* bNumInterfaces: 2 interface */
+  0x03,   /* bNumInterfaces: 3 interface */
   0x01,   /* bConfigurationValue: Configuration value */
   0x00,   /* iConfiguration: Index of string descriptor describing the configuration */
   0xC0,   /* bmAttributes: self powered */
   0x32,   /* MaxPower 0 mA */
 
   /*---------------------------------------------------------------------------*/
+
+  /*Interface Association Descriptor*/
+  0x08,                               // bLength: Descriptor length
+  0x0B,                               // bDescriptorType: IAD
+  0x00,                               // bFirstInterface
+  0x02,                               // bInterfaceCount
+  0x02,                               // bFunctionClass (class of subdevice, should match first interface)
+  0x02,                               // bFunctionSubclass (subclass of subdevice, should match first interface)
+  0x00,                               // bFunctionProtocol (protocol of subdevice, should match first interface)
+  /* TODO: Put a meaningful string here, which shows up in the Windows * */
+  /* device manager when no driver is installed yet. */
+  0x00,                               // iFunction
 
   /*Interface Descriptor */
   0x09,   /* bLength: Interface Descriptor size */
@@ -352,7 +378,9 @@ __ALIGN_BEGIN uint8_t USBD_CDC_CfgFSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN_END = 
   0x02,                              /* bmAttributes: Bulk */
   LOBYTE(CDC_DATA_FS_MAX_PACKET_SIZE),  /* wMaxPacketSize: */
   HIBYTE(CDC_DATA_FS_MAX_PACKET_SIZE),
-  0x00                               /* bInterval: ignore for Bulk transfer */
+  0x00,                              /* bInterval: ignore for Bulk transfer */
+
+  DFU_RT_IFACE_DESC
 } ;
 
 __ALIGN_BEGIN uint8_t USBD_CDC_OtherSpeedCfgDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN_END = {
@@ -360,11 +388,23 @@ __ALIGN_BEGIN uint8_t USBD_CDC_OtherSpeedCfgDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIG
   USB_DESC_TYPE_OTHER_SPEED_CONFIGURATION,
   USB_CDC_CONFIG_DESC_SIZ,
   0x00,
-  0x02,   /* bNumInterfaces: 2 interfaces */
+  0x03,   /* bNumInterfaces: 3 interfaces */
   0x01,   /* bConfigurationValue: */
   0x04,   /* iConfiguration: */
   0xC0,   /* bmAttributes: */
   0x32,   /* MaxPower 100 mA */
+
+  /*Interface Association Descriptor*/
+  0x08,                               // bLength: Descriptor length
+  0x0B,                               // bDescriptorType: IAD
+  0x00,                               // bFirstInterface
+  0x02,                               // bInterfaceCount
+  0x02,                               // bFunctionClass (class of subdevice, should match first interface)
+  0x02,                               // bFunctionSubclass (subclass of subdevice, should match first interface)
+  0x00,                               // bFunctionProtocol (protocol of subdevice, should match first interface)
+  /* TODO: Put a meaningful string here, which shows up in the Windows * */
+  /* device manager when no driver is installed yet. */
+  0x00,                               // iFunction
 
   /*Interface Descriptor */
   0x09,   /* bLength: Interface Descriptor size */
@@ -443,7 +483,9 @@ __ALIGN_BEGIN uint8_t USBD_CDC_OtherSpeedCfgDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIG
   0x02,                             /* bmAttributes: Bulk */
   0x40,                             /* wMaxPacketSize: */
   0x00,
-  0x00                              /* bInterval */
+  0x00,                             /* bInterval */
+
+  DFU_RT_IFACE_DESC
 };
 
 /**
@@ -575,7 +617,26 @@ static uint8_t  USBD_CDC_Setup(USBD_HandleTypeDef *pdev,
 
   switch (req->bmRequest & USB_REQ_TYPE_MASK) {
     case USB_REQ_TYPE_CLASS :
-      if (req->wLength) {
+      if ((req->bmRequest & USB_REQ_RECIPIENT_MASK) == USB_REQ_RECIPIENT_INTERFACE
+          && req->wIndex == DFU_RT_IFACE_NUM) {
+        // Handle requests to the DFU interface separately
+        int device_to_host = (req->bmRequest & 0x80U);
+
+        if (!device_to_host && req->wLength > 0) {
+          // When data is sent, return an error, since the data receiving
+          // machinery will forget the target interface and handle as a CDC
+          // request instead.
+          ret = USBD_FAIL;
+        } else {
+          ret = USBD_DFU_Runtime_Control(req->bRequest, req->wValue, (uint8_t *)(void *)hcdc->data, req->wLength);
+        }
+
+        if (ret == USBD_FAIL) {
+          USBD_CtlError(pdev, req);
+        } else if (device_to_host && req->wLength > 0) {
+          USBD_CtlSendData(pdev, (uint8_t *)(void *)hcdc->data, req->wLength);
+        }
+      } else if (req->wLength) {
         if (req->bmRequest & 0x80U) {
           ((USBD_CDC_ItfTypeDef *)pdev->pUserData)->Control(req->bRequest,
                                                             (uint8_t *)(void *)hcdc->data,

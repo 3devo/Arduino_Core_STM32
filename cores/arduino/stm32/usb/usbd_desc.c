@@ -93,9 +93,9 @@ __ALIGN_BEGIN uint8_t USBD_Class_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
   USB_DESC_TYPE_DEVICE,       /* bDescriptorType */
   0x00,                       /* bcdUSB */
   0x02,
-  0x00,                       /* bDeviceClass */
-  0x00,                       /* bDeviceSubClass */
-  0x00,                       /* bDeviceProtocol */
+  0xEF,                       /* bDeviceClass (Miscellaneous) */
+  0x02,                       /* bDeviceSubClass (Common Class) */
+  0x01,                       /* bDeviceProtocol (Interface Association Descriptor) */
   USB_MAX_EP0_SIZE,           /* bMaxPacketSize */
   LOBYTE(USBD_VID),           /* idVendor */
   HIBYTE(USBD_VID),           /* idVendor */
@@ -117,8 +117,8 @@ __ALIGN_BEGIN uint8_t USBD_Class_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
   USB_DESC_TYPE_DEVICE,       /* bDescriptorType */
   0x00,                       /* bcdUSB */
   0x02,
-  0x02,                       /* bDeviceClass */
-  0x02,                       /* bDeviceSubClass */
+  0x00,                       /* bDeviceClass */
+  0x00,                       /* bDeviceSubClass */
   0x00,                       /* bDeviceProtocol */
   USB_MAX_EP0_SIZE,           /* bMaxPacketSize */
   LOBYTE(USBD_VID),           /* idVendor */
