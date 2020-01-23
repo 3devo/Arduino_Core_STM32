@@ -21,34 +21,59 @@
 #include "usbd_core.h"
 #include "usbd_desc.h"
 #include "utils.h"
+#include <variant.h>
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#if USBD_VID == 0x2341
+
+/* USB VID and PID: Either both or neither must be specified. If not
+ * specified, default to the ST VID, with a PID assigned to HID or a PID
+ * assigned to CDC devices. */
+#if !USBD_PID && !USBD_VID
+#define USBD_VID 0x0483
+#ifdef USBD_USE_HID_COMPOSITE
+#define USBD_PID                      0x5711
+#endif
+#ifdef USBD_USE_CDC
+#define USBD_PID                      0x5740
+#endif
+#endif /* !USBD_PID && !USBD_VID */
+
+#if !USBD_PID || !USBD_PID
+#error "USB VID or PID not specified"
+#endif
+
+/* Manufacturer string: Use the specified string if specified, guess
+   based on VID otherwise */
+#if defined(USB_MANUFACTURER_STRING)
+#define USBD_MANUFACTURER_STRING USB_MANUFACTURER_STRING
+#elif USBD_VID == 0x2341
 #define USBD_MANUFACTURER_STRING "Arduino LLC"
 #elif USBD_VID == 0x2A03
 #define USBD_MANUFACTURER_STRING "Arduino srl"
 #elif USBD_VID == 0x0483
 #define USBD_MANUFACTURER_STRING "STMicroelectronics"
-#elif !defined(USB_MANUFACTURER)
-// Fall through to unknown if no manufacturer name was provided in a macro
-#define USBD_MANUFACTURER_STRING "Unknown"
 #else
-#define USBD_MANUFACTURER_STRING USB_MANUFACTURER
+#define USBD_MANUFACTURER_STRING "Unknown"
 #endif
+
 #define USBD_LANGID_STRING            0x409   /* 1033 US.S English */
 
-#ifdef USBD_USE_HID_COMPOSITE
-#define USBD_CLASS_PID                      0x5711
-#define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(USB_PRODUCT, "HID in HS Mode")
-#define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(USB_PRODUCT, "HID in FS Mode")
-#endif /* USBD_USE_HID_COMPOSITE */
-
-#ifdef USBD_USE_CDC
-#define USBD_CLASS_PID                      0x5740
-#define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(USB_PRODUCT, "CDC in HS Mode")
-#define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(USB_PRODUCT, "CDC in FS Mode")
-#endif /* USBD_USE_CDC */
+/* Product string: Use the specified string if specified, construct
+   based on BOARD_NAME and class otherwise. */
+#if defined(USB_PRODUCT_STRING)
+#define USBD_CLASS_PRODUCT_HS_STRING        USB_PRODUCT_STRING
+#define USBD_CLASS_PRODUCT_FS_STRING        USB_PRODUCT_STRING
+#elif defined(USBD_USE_HID_COMPOSITE)
+#define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(BOARD_NAME, "HID in HS Mode")
+#define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(BOARD_NAME, "HID in FS Mode")
+#elif defined(USBD_USE_CDC)
+#define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(BOARD_NAME, "CDC in HS Mode")
+#define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(BOARD_NAME, "CDC in FS Mode")
+#else
+#define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(BOARD_NAME, "in HS Mode")
+#define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(BOARD_NAME, "in FS Mode")
+#endif
 
 /* Private macro -------------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
@@ -89,8 +114,8 @@ __ALIGN_BEGIN uint8_t USBD_Class_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
   USB_MAX_EP0_SIZE,           /* bMaxPacketSize */
   LOBYTE(USBD_VID),           /* idVendor */
   HIBYTE(USBD_VID),           /* idVendor */
-  LOBYTE(USBD_CLASS_PID),           /* idVendor */
-  HIBYTE(USBD_CLASS_PID),           /* idVendor */
+  LOBYTE(USBD_PID),           /* idProduct */
+  HIBYTE(USBD_PID),           /* idProduct */
   0x00,                       /* bcdDevice rel. 2.00 */
   0x02,
   USBD_IDX_MFC_STR,           /* Index of manufacturer string */
@@ -113,8 +138,8 @@ __ALIGN_BEGIN uint8_t USBD_Class_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END = {
   USB_MAX_EP0_SIZE,           /* bMaxPacketSize */
   LOBYTE(USBD_VID),           /* idVendor */
   HIBYTE(USBD_VID),           /* idVendor */
-  LOBYTE(USBD_CLASS_PID),           /* idVendor */
-  HIBYTE(USBD_CLASS_PID),           /* idVendor */
+  LOBYTE(USBD_PID),           /* idProduct */
+  HIBYTE(USBD_PID),           /* idProduct */
   0x00,                       /* bcdDevice rel. 2.00 */
   0x02,
   USBD_IDX_MFC_STR,           /* Index of manufacturer string */
