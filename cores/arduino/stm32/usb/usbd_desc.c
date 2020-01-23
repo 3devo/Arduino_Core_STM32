@@ -42,20 +42,12 @@
 #define USBD_CLASS_PID                      0x5711
 #define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(USB_PRODUCT, "HID in HS Mode")
 #define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(USB_PRODUCT, "HID in FS Mode")
-#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(USB_PRODUCT, "HID Config")
-#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(USB_PRODUCT, "HID Interface")
-#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(USB_PRODUCT, "HID Config")
-#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(USB_PRODUCT, "HID Interface")
 #endif /* USBD_USE_HID_COMPOSITE */
 
 #ifdef USBD_USE_CDC
 #define USBD_CLASS_PID                      0x5740
 #define USBD_CLASS_PRODUCT_HS_STRING        CONCATS(USB_PRODUCT, "CDC in HS Mode")
 #define USBD_CLASS_PRODUCT_FS_STRING        CONCATS(USB_PRODUCT, "CDC in FS Mode")
-#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(USB_PRODUCT, "CDC Config")
-#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(USB_PRODUCT, "CDC Interface")
-#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(USB_PRODUCT, "CDC Config")
-#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(USB_PRODUCT, "CDC Interface")
 #endif /* USBD_USE_CDC */
 
 /* Private macro -------------------------------------------------------------*/
@@ -68,8 +60,6 @@ uint8_t *USBD_SerialStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length);
 /* Class specific */
 uint8_t *USBD_Class_DeviceDescriptor(USBD_SpeedTypeDef speed, uint16_t *length);
 uint8_t *USBD_Class_ProductStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length);
-uint8_t *USBD_Class_ConfigStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length);
-uint8_t *USBD_Class_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length);
 
 #ifdef USB_SUPPORT_USER_STRING_DESC
 uint8_t *USBD_Class_USRStringDesc(USBD_SpeedTypeDef speed, uint8_t idx, uint16_t *length);
@@ -82,8 +72,8 @@ USBD_DescriptorsTypeDef USBD_Desc = {
   USBD_ManufacturerStrDescriptor,
   USBD_Class_ProductStrDescriptor,
   USBD_SerialStrDescriptor,
-  USBD_Class_ConfigStrDescriptor,
-  USBD_Class_InterfaceStrDescriptor,
+  NULL,
+  NULL,
 };
 
 #ifdef USBD_USE_HID_COMPOSITE
@@ -223,38 +213,6 @@ uint8_t *USBD_SerialStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
   Get_SerialNum();
 
   return (uint8_t *)USBD_StringSerial;
-}
-
-/**
-  * @brief  Returns the configuration string descriptor.
-  * @param  speed: Current device speed
-  * @param  length: Pointer to data length variable
-  * @retval Pointer to descriptor buffer
-  */
-uint8_t *USBD_Class_ConfigStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
-{
-  if (speed == USBD_SPEED_HIGH) {
-    USBD_GetString((uint8_t *)USBD_CLASS_CONFIGURATION_HS_STRING, USBD_StrDesc, length);
-  } else {
-    USBD_GetString((uint8_t *)USBD_CLASS_CONFIGURATION_FS_STRING, USBD_StrDesc, length);
-  }
-  return USBD_StrDesc;
-}
-
-/**
-  * @brief  Returns the interface string descriptor.
-  * @param  speed: Current device speed
-  * @param  length: Pointer to data length variable
-  * @retval Pointer to descriptor buffer
-  */
-uint8_t *USBD_Class_InterfaceStrDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
-{
-  if (speed == USBD_SPEED_HIGH) {
-    USBD_GetString((uint8_t *)USBD_CLASS_INTERFACE_HS_STRING, USBD_StrDesc, length);
-  } else {
-    USBD_GetString((uint8_t *)USBD_CLASS_INTERFACE_FS_STRING, USBD_StrDesc, length);
-  }
-  return USBD_StrDesc;
 }
 
 /**
