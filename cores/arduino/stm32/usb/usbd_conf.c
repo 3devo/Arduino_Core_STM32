@@ -486,7 +486,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   g_hpcd.Instance = USB_OTG_FS;
   g_hpcd.Init.use_dedicated_ep1 = DISABLE;
   g_hpcd.Init.dma_enable = DISABLE;
-  g_hpcd.Init.vbus_sensing_enable = DISABLE;
+  g_hpcd.Init.vbus_sensing_enable = ENABLE;
   g_hpcd.Init.use_external_vbus = DISABLE;
 #else
   g_hpcd.Instance = USB;
