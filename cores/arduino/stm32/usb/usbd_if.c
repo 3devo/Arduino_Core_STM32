@@ -18,6 +18,9 @@
 
 WEAK void USBD_reenumerate(void)
 {
+// If SDIS (soft disconnect) is enabled, assume there are internal
+// pullups which will be managed automatically, so do nothing.
+#ifndef USB_OTG_DCTL_SDIS
 #ifndef USBD_REENUM_DISABLED
   /* Re-enumerate the USB */
 #ifdef USB_DISC_PIN
@@ -38,6 +41,7 @@ WEAK void USBD_reenumerate(void)
   /*delay(USBD_ENUM_DELAY);*/
 #endif /* USB_DISC_PIN */
 #endif /* USBD_REENUM_DISABLED */
+#endif /* USB_OTG_DCTL_SDIS */
 }
 
 #ifdef USBD_USE_CDC
