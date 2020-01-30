@@ -30,16 +30,19 @@
  * specified, default to the ST VID, with a PID assigned to HID or a PID
  * assigned to CDC devices. */
 #if !USBD_PID && !USBD_VID
+// Undef the default zero values
+#undef USBD_PID
+#undef USBD_VID
+// Define default values, based on the USB class used
 #define USBD_VID 0x0483
-#ifdef USBD_USE_HID_COMPOSITE
+#if defined(USBD_USE_HID_COMPOSITE)
 #define USBD_PID                      0x5711
-#endif
-#ifdef USBD_USE_CDC
+#elif defined(USBD_USE_CDC)
 #define USBD_PID                      0x5740
 #endif
 #endif /* !USBD_PID && !USBD_VID */
 
-#if !USBD_PID || !USBD_PID
+#if !USBD_VID || !USBD_PID
 #error "USB VID or PID not specified"
 #endif
 
@@ -76,17 +79,17 @@
 #endif
 
 #ifdef USBD_USE_HID_COMPOSITE
-#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(USB_PRODUCT, "HID Config")
-#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(USB_PRODUCT, "HID Interface")
-#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(USB_PRODUCT, "HID Config")
-#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(USB_PRODUCT, "HID Interface")
+#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(BOARD_NAME, "HID Config")
+#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(BOARD_NAME, "HID Interface")
+#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(BOARD_NAME, "HID Config")
+#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(BOARD_NAME, "HID Interface")
 #endif /* USBD_USE_HID_COMPOSITE */
 
 #ifdef USBD_USE_CDC
-#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(USB_PRODUCT, "CDC Config")
-#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(USB_PRODUCT, "CDC Interface")
-#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(USB_PRODUCT, "CDC Config")
-#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(USB_PRODUCT, "CDC Interface")
+#define USBD_CLASS_CONFIGURATION_HS_STRING  CONCATS(BOARD_NAME, "CDC Config")
+#define USBD_CLASS_INTERFACE_HS_STRING      CONCATS(BOARD_NAME, "CDC Interface")
+#define USBD_CLASS_CONFIGURATION_FS_STRING  CONCATS(BOARD_NAME, "CDC Config")
+#define USBD_CLASS_INTERFACE_FS_STRING      CONCATS(BOARD_NAME, "CDC Interface")
 #endif /* USBD_USE_CDC */
 
 /* Private macro -------------------------------------------------------------*/
