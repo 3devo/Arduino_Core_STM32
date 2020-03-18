@@ -116,6 +116,8 @@ WEAK void jumpToBootloader(void)
 #endif
     void (*sysMemBootJump)(void);
 
+    __HAL_RCC_CLEAR_RESET_FLAGS();
+
     /**
      * Get system memory address
      *
