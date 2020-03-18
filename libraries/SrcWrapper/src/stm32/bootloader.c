@@ -8,75 +8,8 @@
 /*
  * STM32 built-in bootloader in system memory support
  */
-/* Private definitions to manage system memory address */
-#define SYSMEM_ADDR_COMMON 0xFFF
 
 static bool BootIntoBootloaderAfterReset;
-
-typedef struct {
-  uint32_t devID;
-  uint32_t sysMemAddr;
-} devSysMemAddr_str;
-
-devSysMemAddr_str devSysMemAddr[] = {
-#ifdef STM32F0xx
-  {0x440, 0x1FFFEC00},
-  {0x444, 0x1FFFEC00},
-  {0x442, 0x1FFFD800},
-  {0x445, 0x1FFFC400},
-  {0x448, 0x1FFFC800},
-#elif STM32F1xx
-  {0x412, 0x1FFFF000},
-  {0x410, 0x1FFFF000},
-  {0x414, 0x1FFFF000},
-  {0x420, 0x1FFFF000},
-  {0x428, 0x1FFFF000},
-  {0x418, 0x1FFFB000},
-  {0x430, 0x1FFFE000},
-#elif STM32F2xx
-  {0x411, 0x1FFF0000},
-#elif STM32F3xx
-  {SYSMEM_ADDR_COMMON, 0x1FFFD800},
-#elif STM32F4xx
-  {SYSMEM_ADDR_COMMON, 0x1FFF0000},
-#elif STM32F7xx
-  {SYSMEM_ADDR_COMMON, 0x1FF00000},
-#elif STM32G0xx
-  {SYSMEM_ADDR_COMMON, 0x1FFF0000},
-#elif STM32G4xx
-  {SYSMEM_ADDR_COMMON, 0x1FFF0000},
-#elif STM32H7xx
-  {0x450, 0x1FF00000},
-#elif STM32L0xx
-  {SYSMEM_ADDR_COMMON, 0x1FF00000},
-#elif STM32L1xx
-  {SYSMEM_ADDR_COMMON, 0x1FF00000},
-#elif STM32L4xx
-  {SYSMEM_ADDR_COMMON, 0x1FFF0000},
-#elif STM32WBxx
-  {SYSMEM_ADDR_COMMON, 0x1FFF0000},
-#else
-#warning "No system memory address for this serie!"
-#endif
-  {0x0000, 0x00000000}
-};
-
-uint32_t getSysMemAddr(void)
-{
-  uint32_t sysMemAddr = 0;
-  if (devSysMemAddr[0].devID == SYSMEM_ADDR_COMMON) {
-    sysMemAddr = devSysMemAddr[0].sysMemAddr;
-  } else {
-    uint32_t devId = LL_DBGMCU_GetDeviceID();
-    for (uint32_t id = 0; devSysMemAddr[id].devID != 0; id++) {
-      if (devSysMemAddr[id].devID == devId) {
-        sysMemAddr = devSysMemAddr[id].sysMemAddr;
-        break;
-      }
-    }
-  }
-  return sysMemAddr;
-}
 
 /* Request to jump to system memory boot */
 WEAK void jumpToBootloaderRequested(void)
@@ -118,47 +51,57 @@ WEAK void jumpToBootloader(void)
 
     __HAL_RCC_CLEAR_RESET_FLAGS();
 
-    /**
-     * Get system memory address
-     *
-     * Available in AN2606 document:
-     * Table xxx Bootloader device-dependent parameters
-     */
-    volatile uint32_t sysMem_addr = getSysMemAddr();
-    /*
-     * If the system address is not not referenced in 'devSysMemAddr' array,
-     * does not do anything
-     */
-    if (sysMem_addr != 0) {
 #ifdef __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH
-      /* Remap system Flash memory at address 0x00000000 */
-      __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
+    /* Remap system Flash memory at address 0x00000000 */
+    __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
+    uint32_t sysMem_addr = 0;
+#elif defined(STM32F1xx) && defined ((STM32F101xG) || defined (STM32F103xG))
+    // From AN2606, table 136 "Bootloader device-dependent parameters"
+    // STM32F10xxx XL-density, aka 768K-1M flash, aka F and G flash size codes
+    uint32_t sysMem_addr = 0x1FFFE000;
+#elif defined(STM32F1xx) && defined (STM32F105xC) || defined (STM32F107xC)
+    // STM32F105xx/107xx from AN2606, table 136 "Bootloader device-dependent parameters"
+    uint32_t sysMem_addr = 0x1FFFB000;
+#elif defined (STM32F100xB) || defined (STM32F100xE) || defined (STM32F101x6) || \
+    defined (STM32F101xB) || defined (STM32F101xE) ||  defined (STM32F102x6) || \
+    defined (STM32F102xB) || defined (STM32F103x6) || defined (STM32F103xB) || \
+    defined (STM32F103xE)
+    // STM32F10xxx from AN2606, table 136 "Bootloader device-dependent parameters"
+    // This does not check for STM32F1xx, to prevent catching
+    // STM32F105xx/STM32F107xx or XL-density chips that are introduced later.
+    // Defines from system/Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h
+    uint32_t sysMem_addr = 0x1FFFF000;
+#elif defined(STM32F7xx) || defined(STM32H7xx)
+    // From AN2606, table 136 "Bootloader device-dependent parameters"
+    // TODO: Reference manual for has a different value...
+    uint32_t sysMem_addr = 0x1FF00000;
+#else
+    #error "System flash address unknown for this CPU"
 #endif
 
-      /**
-       * Set jump memory location for system memory
-       * Use address with 4 bytes offset which specifies jump location
-       * where program starts
-       */
-      sysMemBootJump = (void (*)(void))(*((uint32_t *)(sysMem_addr + 4)));
+    /**
+     * Set jump memory location for system memory
+     * Use address with 4 bytes offset which specifies jump location
+     * where program starts
+     */
+    sysMemBootJump = (void (*)(void))(*((uint32_t *)(sysMem_addr + 4)));
 
-      /**
-       * Set main stack pointer.
-       * This step must be done last otherwise local variables in this function
-       * don't have proper value since stack pointer is located on different position
-       *
-       * Set direct address location which specifies stack pointer in SRAM location
-       */
-      __set_MSP(*(uint32_t *)sysMem_addr);
+    /**
+     * Set main stack pointer.
+     * This step must be done last otherwise local variables in this function
+     * don't have proper value since stack pointer is located on different position
+     *
+     * Set direct address location which specifies stack pointer in SRAM location
+     */
+    __set_MSP(*(uint32_t *)sysMem_addr);
 
-      /**
-       * Jump to set location
-       * This will start system memory execution
-       */
-      sysMemBootJump();
+    /**
+     * Jump to set location
+     * This will start system memory execution
+     */
+    sysMemBootJump();
 
-      while (1);
-    }
+    while (1);
   }
 }
 
