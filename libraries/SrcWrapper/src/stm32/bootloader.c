@@ -57,7 +57,10 @@ WEAK void jumpToBootloader(void)
 #ifdef __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH
     /* Remap system Flash memory at address 0x00000000 */
     __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
-    uint32_t sysMem_addr = 0;
+    // Make the variable volatile to prevent the compiler from seeing a
+    // null-pointer dereference (which is undefined in C) and generating
+    // an UDF (undefined) instruction instead of just loading address 0.
+    volatile uint32_t sysMem_addr = 0;
 #elif defined(STM32F1xx) && defined ((STM32F101xG) || defined (STM32F103xG))
     // From AN2606, table 136 "Bootloader device-dependent parameters"
     // STM32F10xxx XL-density, aka 768K-1M flash, aka F and G flash size codes
