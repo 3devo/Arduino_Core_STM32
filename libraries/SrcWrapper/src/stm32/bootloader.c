@@ -26,14 +26,53 @@ void Original_Reset_Handler();
 // pointer is set up by this time.
 void Reset_Handler() {
   // Jump to the bootloader if needed.
-  jumpToBootloader();
+  jumpToBootloaderIfRequested();
 
   // Continue with regular startup by calling the original reset handler
   Original_Reset_Handler();
 }
 
+/* Figure out where the bootloader lives, remapping memory if needed,
+ * and return its address. The returned address should point to the
+ * bootloader's interrupt vector table, so to a SP to load followed by
+ * an address to jump to.
+ */
+WEAK uint32_t bootloaderAddress() {
+#ifdef __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH
+  /* Remap system Flash memory at address 0x00000000 */
+  __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
+  // Make the variable volatile to prevent the compiler from seeing a
+  // null-pointer dereference (which is undefined in C) and generating
+  // an UDF (undefined) instruction instead of just loading address 0.
+  return 0;
+#elif defined(STM32F1xx) && defined ((STM32F101xG) || defined (STM32F103xG))
+  // From AN2606, table 136 "Bootloader device-dependent parameters"
+  // STM32F10xxx XL-density, aka 768K-1M flash, aka F and G flash size codes
+  return 0x1FFFE000;
+#elif defined(STM32F1xx) && defined (STM32F105xC) || defined (STM32F107xC)
+  // STM32F105xx/107xx from AN2606, table 136 "Bootloader device-dependent parameters"
+  return 0x1FFFB000;
+#elif defined (STM32F100xB) || defined (STM32F100xE) || defined (STM32F101x6) || \
+  defined (STM32F101xB) || defined (STM32F101xE) ||  defined (STM32F102x6) || \
+  defined (STM32F102xB) || defined (STM32F103x6) || defined (STM32F103xB) || \
+  defined (STM32F103xE)
+  // STM32F10xxx from AN2606, table 136 "Bootloader device-dependent parameters"
+  // This does not check for STM32F1xx, to prevent catching
+  // STM32F105xx/STM32F107xx or XL-density chips that are introduced later.
+  // Defines from system/Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h
+  return 0x1FFFF000;
+#elif defined(STM32F7xx) || defined(STM32H7xx)
+  // From AN2606, table 136 "Bootloader device-dependent parameters"
+  // TODO: Reference manual for has a different value...
+  return 0x1FF00000;
+#else
+  #error "System flash address unknown for this CPU"
+#endif
+}
+
+
 /* Jump to system memory boot from user application */
-WEAK void jumpToBootloader(void)
+WEAK void jumpToBootloaderIfRequested(void)
 {
   // Boot into bootloader if BootIntoBootloaderAfterReset is set.
   // Note that BootIntoBootloaderAfterReset is a noinit variable, so it
@@ -47,38 +86,13 @@ WEAK void jumpToBootloader(void)
   BootIntoBootloaderAfterReset = false;
 
   if (doBootloader) {
+    __HAL_RCC_CLEAR_RESET_FLAGS();
+
 #ifdef USBCON
     USBD_reenumerate();
 #endif
-    __HAL_RCC_CLEAR_RESET_FLAGS();
 
-#ifdef __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH
-    /* Remap system Flash memory at address 0x00000000 */
-    __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
-    uint32_t sysMem_addr = 0;
-#elif defined(STM32F1xx) && defined ((STM32F101xG) || defined (STM32F103xG))
-    // From AN2606, table 136 "Bootloader device-dependent parameters"
-    // STM32F10xxx XL-density, aka 768K-1M flash, aka F and G flash size codes
-    uint32_t sysMem_addr = 0x1FFFE000;
-#elif defined(STM32F1xx) && defined (STM32F105xC) || defined (STM32F107xC)
-    // STM32F105xx/107xx from AN2606, table 136 "Bootloader device-dependent parameters"
-    uint32_t sysMem_addr = 0x1FFFB000;
-#elif defined (STM32F100xB) || defined (STM32F100xE) || defined (STM32F101x6) || \
-    defined (STM32F101xB) || defined (STM32F101xE) ||  defined (STM32F102x6) || \
-    defined (STM32F102xB) || defined (STM32F103x6) || defined (STM32F103xB) || \
-    defined (STM32F103xE)
-    // STM32F10xxx from AN2606, table 136 "Bootloader device-dependent parameters"
-    // This does not check for STM32F1xx, to prevent catching
-    // STM32F105xx/STM32F107xx or XL-density chips that are introduced later.
-    // Defines from system/Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f1xx.h
-    uint32_t sysMem_addr = 0x1FFFF000;
-#elif defined(STM32F7xx) || defined(STM32H7xx)
-    // From AN2606, table 136 "Bootloader device-dependent parameters"
-    // TODO: Reference manual for has a different value...
-    uint32_t sysMem_addr = 0x1FF00000;
-#else
-    #error "System flash address unknown for this CPU"
-#endif
+    uint32_t sys = bootloaderAddress();
 
     // This is assembly to prevent modifying the stack pointer after
     // loading it, and to ensure a jump (not call) to the bootloader.
@@ -91,7 +105,7 @@ WEAK void jumpToBootloader(void)
       "dsb                    \n\t"  // data sync barrier
       "isb                    \n\t"  // instruction sync barrier
       "bx r0                  \n\t"  // branch to bootloader
-      : : [sys] "l" (sysMem_addr) : "r0"
+      : : [sys] "l" (sys) : "r0"
     );
 
     __builtin_unreachable();
