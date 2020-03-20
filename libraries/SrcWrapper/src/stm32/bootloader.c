@@ -50,17 +50,12 @@ WEAK void jumpToBootloader(void)
 #ifdef USBCON
     USBD_reenumerate();
 #endif
-    void (*sysMemBootJump)(void);
-
     __HAL_RCC_CLEAR_RESET_FLAGS();
 
 #ifdef __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH
     /* Remap system Flash memory at address 0x00000000 */
     __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
-    // Make the variable volatile to prevent the compiler from seeing a
-    // null-pointer dereference (which is undefined in C) and generating
-    // an UDF (undefined) instruction instead of just loading address 0.
-    volatile uint32_t sysMem_addr = 0;
+    uint32_t sysMem_addr = 0;
 #elif defined(STM32F1xx) && defined ((STM32F101xG) || defined (STM32F103xG))
     // From AN2606, table 136 "Bootloader device-dependent parameters"
     // STM32F10xxx XL-density, aka 768K-1M flash, aka F and G flash size codes
@@ -85,29 +80,21 @@ WEAK void jumpToBootloader(void)
     #error "System flash address unknown for this CPU"
 #endif
 
-    /**
-     * Set jump memory location for system memory
-     * Use address with 4 bytes offset which specifies jump location
-     * where program starts
-     */
-    sysMemBootJump = (void (*)(void))(*((uint32_t *)(sysMem_addr + 4)));
+    // This is assembly to prevent modifying the stack pointer after
+    // loading it, and to ensure a jump (not call) to the bootloader.
+    // Not sure if the barriers are really needed, they were taken from
+    // https://github.com/GrumpyOldPizza/arduino-STM32L4/blob/ac659033eadd50cfe001ba1590a1362b2d87bb76/system/STM32L4xx/Source/boot_stm32l4xx.c#L159-L165
+    asm volatile (
+      "ldr r0, [%[sys], #0]   \n\t"  // get address of stack pointer
+      "msr msp, r0            \n\t"  // set stack pointer
+      "ldr r0, [%[sys], #4]   \n\t"  // get address of reset handler
+      "dsb                    \n\t"  // data sync barrier
+      "isb                    \n\t"  // instruction sync barrier
+      "bx r0                  \n\t"  // branch to bootloader
+      : : [sys] "l" (sysMem_addr) : "r0"
+    );
 
-    /**
-     * Set main stack pointer.
-     * This step must be done last otherwise local variables in this function
-     * don't have proper value since stack pointer is located on different position
-     *
-     * Set direct address location which specifies stack pointer in SRAM location
-     */
-    __set_MSP(*(uint32_t *)sysMem_addr);
-
-    /**
-     * Jump to set location
-     * This will start system memory execution
-     */
-    sysMemBootJump();
-
-    while (1);
+    __builtin_unreachable();
   }
 }
 
