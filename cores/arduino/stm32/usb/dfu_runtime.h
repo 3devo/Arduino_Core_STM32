@@ -132,8 +132,7 @@ static int8_t USBD_DFU_Runtime_Control(uint8_t bRequest, uint16_t wValue, uint8_
       return (USBD_OK);
 
     case DFU_DETACH:
-      // TODO: Delay?
-      jumpToBootloaderRequested();
+      scheduleBootloaderReset();
       return (USBD_OK);
 
     case DFU_GETSTATE:
