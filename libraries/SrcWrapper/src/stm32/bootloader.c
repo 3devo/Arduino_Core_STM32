@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "bootloader.h"
 
 #include "stm32_def.h"
