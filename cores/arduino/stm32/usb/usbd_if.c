@@ -152,7 +152,11 @@ void USBD_early_startup_delay_us(uint32_t us) {
 
   // Assembly loop, designed to run at exactly 4 cycles per loop.
   asm volatile (
-    "1:\r\n"
+    // Use the unified ARM/Thumb syntax, which seems to be more
+    // universally used and corresponds to what avr-objdump outputs
+    // See https://sourceware.org/binutils/docs/as/ARM_002dInstruction_002dSet.html
+    ".syntax unified\n\t"
+    "1:\n\t"
     "nop                         /* 1 cycle */\n\t"
     "subs %[loop], %[loop], #1    /* 1 cycle */\n\t"
     "bne  1b                     /* 2 if taken, 1 otherwise */\n\t"
