@@ -401,6 +401,12 @@ void HardwareTimer::resumeChannel(uint32_t channel)
         HAL_TIM_IC_Start(&(_timerObj.handle), timChannel);
       }
       break;
+    case TIMER_INPUT_CAPTURE_ENCODER_TI1:
+    case TIMER_INPUT_CAPTURE_ENCODER_TI2: 
+    case TIMER_INPUT_CAPTURE_ENCODER_TI_ALL: {
+        HAL_TIM_Encoder_Start(&(_timerObj.handle), timChannel);
+      }
+      break;
     case TIMER_NOT_USED:
     default :
       break;
@@ -589,6 +595,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
   int timAssociatedInputChannel;
   TIM_OC_InitTypeDef channelOC;
   TIM_IC_InitTypeDef channelIC;
+  TIM_Encoder_InitTypeDef channelEncoder;
 
   if (timChannel == -1) {
     Error_Handler();
@@ -615,6 +622,16 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
   channelIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   channelIC.ICPrescaler = TIM_ICPSC_DIV1;
   channelIC.ICFilter = 0;
+  // Encoder mode settings
+  channelEncoder.EncoderMode = TIMER_NOT_USED;
+  channelEncoder.IC1Polarity = TIM_ENCODERINPUTPOLARITY_RISING;
+  channelEncoder.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  channelEncoder.IC1Prescaler = TIM_ICPSC_DIV1;
+  channelEncoder.IC1Filter = 0;
+  channelEncoder.IC2Polarity = TIM_ENCODERINPUTPOLARITY_RISING;
+  channelEncoder.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  channelEncoder.IC2Prescaler = TIM_ICPSC_DIV1;
+  channelEncoder.IC2Filter = 0;
 
   switch (mode) {
     case TIMER_DISABLED:
@@ -667,6 +684,20 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
       channelIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
       HAL_TIM_IC_ConfigChannel(&(_timerObj.handle), &channelIC, timChannel);
       break;
+    case TIMER_INPUT_CAPTURE_ENCODER_TI1:
+      channelEncoder.EncoderMode = TIM_ENCODERMODE_TI1;
+      HAL_TIM_Encoder_Init(&(_timerObj.handle), &channelEncoder);
+      break;
+    case TIMER_INPUT_CAPTURE_ENCODER_TI2:
+      channelEncoder.EncoderMode = TIM_ENCODERMODE_TI2;
+      HAL_TIM_Encoder_Init(&(_timerObj.handle), &channelEncoder);
+      break;
+    case TIMER_INPUT_CAPTURE_ENCODER_TI_ALL:
+      channelEncoder.EncoderMode = TIM_ENCODERMODE_TI12;
+      // This will set up the second channel T2 as well, no need to configure
+      // the associated channel manually.
+      HAL_TIM_Encoder_Init(&(_timerObj.handle), &channelEncoder);
+      break;
     case TIMER_INPUT_FREQ_DUTY_MEASUREMENT:
       // Configure 1st channel
       channelIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
@@ -688,6 +719,21 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
     if ((int)get_pwm_channel(pin) == timChannel) {
       /* Configure PWM GPIO pins */
       pinmap_pinout(pin, PinMap_PWM);
+
+      // Search the associated channel if both encoder pins need to be used
+      // and set the pinout for that one as well according to the pinmap.
+      // Note that, this assumes that the pin with their respective timer
+      // has a channel 1 and 2 configured in the pinmapping. If more than 1
+      // pin of the same channel is configured in the pinmapping it will
+      // pick the first one available.
+      if (mode == TIMER_INPUT_CAPTURE_ENCODER_TI_ALL || mode == TIMER_INPUT_CAPTURE_ENCODER_TI1 
+      || mode == TIMER_INPUT_CAPTURE_ENCODER_TI2) {
+        timAssociatedInputChannel = getAssociatedChannel(channel);
+        void * const UsedTimer = pinmap_peripheral(pin, PinMap_PWM);
+        const PinName AssociatedPin = pinmap_find_pin_by_channel(UsedTimer, timAssociatedInputChannel, PinMap_PWM);
+        pinmap_pinout(AssociatedPin, PinMap_PWM);
+      }
+
 #if defined(STM32F1xx)
       if ((mode == TIMER_INPUT_CAPTURE_RISING) || (mode == TIMER_INPUT_CAPTURE_FALLING) \
           || (mode == TIMER_INPUT_CAPTURE_BOTHEDGE) || (mode == TIMER_INPUT_FREQ_DUTY_MEASUREMENT)) {

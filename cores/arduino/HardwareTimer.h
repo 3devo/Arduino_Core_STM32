@@ -52,6 +52,11 @@ typedef enum {
   TIMER_INPUT_CAPTURE_FALLING,            // == TIM_INPUTCHANNELPOLARITY_FALLING
   TIMER_INPUT_CAPTURE_BOTHEDGE,           // == TIM_INPUTCHANNELPOLARITY_BOTHEDGE
 
+  // Using external input timer interrupt channel 1, 2 or both to read encoders without the need for extra hardware.
+  TIMER_INPUT_CAPTURE_ENCODER_TI1,        // == TIM_ENCODERMODE_TI1
+  TIMER_INPUT_CAPTURE_ENCODER_TI2,        // == TIM_ENCODERMODE_TI2
+  TIMER_INPUT_CAPTURE_ENCODER_TI_ALL,     // == TIM_ENCODERMODE_TI12 (both TI1 and TI2)
+
   // Used 2 channels for a single pin. One channel in TIM_INPUTCHANNELPOLARITY_RISING another channel in TIM_INPUTCHANNELPOLARITY_FALLING.
   // Channels must be used by pair: CH1 with CH2, or CH3 with CH4
   // This mode is very useful for Frequency and Dutycycle measurement
