@@ -227,6 +227,29 @@ PinName pinmap_pin(void *peripheral, const PinMap *map)
   return pin;
 }
 
+PinName pinmap_find_pin_by_channel(void *peripheral, uint8_t channel, const PinMap *map)
+{
+  PinName pin = NC;
+  const PinMap *check_map = map;
+
+  while (check_map->pin != NC) {
+    while (check_map->peripheral != NP) {
+      check_map = map++;
+      if (check_map->peripheral == peripheral) {
+        pin = check_map->pin;
+        break;
+      }
+    }
+
+    if (pin != (PinName)NC) {
+      if (STM_PIN_CHANNEL(pinmap_function(pin, check_map)) == channel) {
+        return pin;
+      }
+    }
+  }
+  return NC;
+}
+
 uint32_t pinmap_find_function(PinName pin, const PinMap *map)
 {
   while (map->pin != NC) {
