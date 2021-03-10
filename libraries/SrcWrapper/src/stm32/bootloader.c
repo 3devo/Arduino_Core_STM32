@@ -1,5 +1,6 @@
 #include "bootloader.h"
 
+#include <stdbool.h>
 #include "stm32_def.h"
 #include "backup.h"
 #include "stm32yyxx_ll_system.h"
