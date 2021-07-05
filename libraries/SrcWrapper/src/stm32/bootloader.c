@@ -78,6 +78,17 @@ WEAK uint32_t bootloaderAddress() {
 /* Jump to system memory boot from user application */
 WEAK void jumpToBootloaderIfRequested(void)
 {
+  // If we are not at the start of flash, assume that a custom
+  // bootloader is in front of us, and there is no need to jump to it
+  // (since it will run before we can run anyway). If such a bootloader
+  // exists, the BootIntoBootloaderAfterReset variable will likely be
+  // corrupted anyway.
+  // TODO: Might be better to use a specific macro to control this,
+  // rather than check VECT_TAB_OFFSET
+  #if defined(VECT_TAB_OFFSET) && (VECT_TAB_OFFSET > 0)
+  return;
+  #endif
+
   // Boot into bootloader if BootIntoBootloaderAfterReset is set.
   // Note that BootIntoBootloaderAfterReset is a noinit variable, so it
   // s not automatically initialized on startup (so it can keep its
